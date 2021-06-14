@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { PropertyOperator } from '~/types'
 import { Col, Select, SelectProps } from 'antd'
-import { isOperatorFlag, isOperatorMulti, operatorMap } from 'lib/utils'
+import { isMobile, isOperatorFlag, isOperatorMulti, operatorMap } from 'lib/utils'
 import { PropertyValue } from './PropertyValue'
 import { ColProps } from 'antd/lib/col'
 
@@ -38,16 +38,16 @@ export function OperatorValueSelect({
         <>
             <Col {...(Array.isArray(columnOptions) ? columnOptions[0] : columnOptions)}>
                 <OperatorSelect
-                    operator={currentOperator || 'exact'}
+                    operator={currentOperator || PropertyOperator.Exact}
                     operators={Object.keys(operatorMap) as Array<PropertyOperator>}
                     onChange={(newOperator: PropertyOperator) => {
                         setCurrentOperator(newOperator)
                         if (isOperatorFlag(newOperator)) {
                             onChange(newOperator, newOperator)
-                        } else if (isOperatorFlag(currentOperator || 'exact')) {
+                        } else if (isOperatorFlag(currentOperator || PropertyOperator.Exact)) {
                             onChange(newOperator, null)
                         } else if (
-                            isOperatorMulti(currentOperator || 'exact') &&
+                            isOperatorMulti(currentOperator || PropertyOperator.Exact) &&
                             !isOperatorMulti(newOperator) &&
                             Array.isArray(value)
                         ) {
@@ -59,17 +59,18 @@ export function OperatorValueSelect({
                     {...operatorSelectProps}
                 />
             </Col>
-            {!isOperatorFlag(currentOperator || 'exact') && (
+            {!isOperatorFlag(currentOperator || PropertyOperator.Exact) && (
                 <Col {...(Array.isArray(columnOptions) ? columnOptions[1] : columnOptions)}>
                     <PropertyValue
                         type={type}
                         key={propkey}
                         propertyKey={propkey}
-                        operator={currentOperator || 'exact'}
+                        operator={currentOperator || PropertyOperator.Exact}
                         value={value}
                         onSet={(newValue: string | number | string[] | null) => {
-                            onChange(currentOperator || 'exact', newValue)
+                            onChange(currentOperator || PropertyOperator.Exact, newValue)
                         }}
+                        autoFocus={!isMobile()}
                     />
                 </Col>
             )}
@@ -90,7 +91,7 @@ export function OperatorSelect({ operator, operators, onChange, ...props }: Oper
             labelInValue
             value={{
                 value: operator || '=',
-                label: operatorMap[operator || 'exact'],
+                label: operatorMap[operator || PropertyOperator.Exact],
             }}
             placeholder="Property key"
             onChange={(_value, op) => {
@@ -100,8 +101,8 @@ export function OperatorSelect({ operator, operators, onChange, ...props }: Oper
             {...props}
         >
             {operators.map((op) => (
-                <Select.Option key={op} value={op || 'exact'}>
-                    {operatorMap[op || 'exact']}
+                <Select.Option key={op} value={op || PropertyOperator.Exact}>
+                    {operatorMap[op || PropertyOperator.Exact]}
                 </Select.Option>
             ))}
         </Select>

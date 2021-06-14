@@ -1,7 +1,7 @@
 import { kea } from 'kea'
 import api from 'lib/api'
 import { ViewType, insightLogic } from 'scenes/insights/insightLogic'
-import { autocorrectInterval, objectsEqual, toParams } from 'lib/utils'
+import { autocorrectInterval, objectsEqual, toParams, uuid } from 'lib/utils'
 import { insightHistoryLogic } from 'scenes/insights/InsightHistoryPanel/insightHistoryLogic'
 import { funnelsModel } from '../../models/funnelsModel'
 import { dashboardItemsModel } from '~/models/dashboardItemsModel'
@@ -58,6 +58,8 @@ export const funnelLogic = kea({
         setFilters: (filters, refresh = false) => ({ filters, refresh }),
         saveFunnelInsight: (name) => ({ name }),
         setStepsWithCountLoading: (stepsWithCountLoading) => ({ stepsWithCountLoading }),
+        loadConversionWindow: (days) => ({ days }),
+        setConversionWindowInDays: (days) => ({ days }),
     }),
 
     connect: {
@@ -78,11 +80,13 @@ export const funnelLogic = kea({
                     ...(refresh ? { refresh: true } : {}),
                     ...(from_dashboard ? { from_dashboard } : {}),
                     ...cleanedParams,
+                    funnel_window_days: values.conversionWindowInDays,
                 }
 
                 let result
 
-                insightLogic.actions.startQuery()
+                const queryId = uuid()
+                insightLogic.actions.startQuery(queryId)
 
                 const eventCount = params.events?.length
                 const actionCount = params.actions?.length
@@ -92,12 +96,12 @@ export const funnelLogic = kea({
                     result = await pollFunnel(params)
                     eventUsageLogic.actions.reportFunnelCalculated(eventCount, actionCount, interval, true)
                 } catch (e) {
-                    insightLogic.actions.endQuery(ViewType.FUNNELS, false, e)
+                    insightLogic.actions.endQuery(queryId, ViewType.FUNNELS, false, e)
                     eventUsageLogic.actions.reportFunnelCalculated(eventCount, actionCount, interval, false, e.message)
                     return []
                 }
                 breakpoint()
-                insightLogic.actions.endQuery(ViewType.FUNNELS, result.last_refresh)
+                insightLogic.actions.endQuery(queryId, ViewType.FUNNELS, result.last_refresh)
                 actions.setSteps(result.result)
                 return result.result
             },
@@ -134,6 +138,14 @@ export const funnelLogic = kea({
         people: {
             clearFunnel: () => null,
         },
+        conversionWindowInDays: [
+            14,
+            {
+                setConversionWindowInDays: (state, { days }) => {
+                    return days >= 1 && days <= 365 ? Math.round(days) : state.conversionWindowInDays
+                },
+            },
+        ],
     }),
 
     selectors: ({ selectors }) => ({
@@ -203,6 +215,11 @@ export const funnelLogic = kea({
             if (props.dashboardItemId) {
                 actions.setFilters(filters, true)
             }
+        },
+        loadConversionWindow: async ({ days }, breakpoint) => {
+            await breakpoint(1000)
+            actions.setConversionWindowInDays(days)
+            actions.loadResults()
         },
     }),
     actionToUrl: ({ actions, values, props }) => ({

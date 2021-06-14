@@ -11,6 +11,8 @@ from rest_framework import authentication, request, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
+from rest_framework_csv import renderers as csvrenderers
 from rest_hooks.signals import raw_hook_event
 
 from posthog.api.routing import StructuredViewSetMixin
@@ -176,6 +178,7 @@ def get_actions(queryset: QuerySet, params: dict, team_id: int) -> QuerySet:
 
 
 class ActionViewSet(StructuredViewSetMixin, viewsets.ModelViewSet):
+    renderer_classes = tuple(api_settings.DEFAULT_RENDERER_CLASSES) + (csvrenderers.PaginatedCSVRenderer,)
     queryset = Action.objects.all()
     serializer_class = ActionSerializer
     authentication_classes = [
@@ -289,6 +292,19 @@ class ActionViewSet(StructuredViewSetMixin, viewsets.ModelViewSet):
         current_url = request.get_full_path()
         next_url = paginated_result(serialized_people, request, filter.offset)
 
+        if request.accepted_renderer.format == "csv":
+            csvrenderers.CSVRenderer.header = ["Distinct ID", "Internal ID", "Email", "Name"]
+            content = [
+                {
+                    "Name": person.get("properties", {}).get("name"),
+                    "Distinct ID": person.get("distinct_ids", [""])[0],
+                    "Internal ID": person["uuid"],
+                    "Email": person.get("properties", {}).get("email"),
+                }
+                for person in serialized_people
+            ]
+            return content
+
         return {
             "results": [{"people": serialized_people, "count": len(serialized_people)}],
             "next": next_url,
@@ -337,10 +353,17 @@ def _filter_person_prop_breakdown(events: QuerySet, filter: Filter) -> QuerySet:
     return events
 
 
+def _filter_event_prop_breakdown(events: QuerySet, filter: Filter) -> QuerySet:
+    if filter.breakdown_type == "event":
+        events = events.filter(**{"properties__{}".format(filter.breakdown): filter.breakdown_value,})
+    return events
+
+
 def calculate_people(team: Team, events: QuerySet, filter: Filter, use_offset: bool = True) -> QuerySet:
     events = events.values("person_id").distinct()
     events = _filter_cohort_breakdown(events, filter)
     events = _filter_person_prop_breakdown(events, filter)
+    events = _filter_event_prop_breakdown(events, filter)
 
     people = Person.objects.filter(
         team=team,

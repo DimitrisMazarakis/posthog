@@ -1,4 +1,5 @@
 import React from 'react'
+import { AnnotationScope } from '../types'
 
 export const ACTIONS_LINE_GRAPH_LINEAR = 'ActionsLineGraph'
 export const ACTIONS_LINE_GRAPH_CUMULATIVE = 'ActionsLineGraphCumulative'
@@ -29,12 +30,6 @@ export const organizationMembershipLevelToName = new Map<number, string>([
     [OrganizationMembershipLevel.Owner, 'owner'],
 ])
 
-export enum AnnotationScope {
-    DashboardItem = 'dashboard_item',
-    Project = 'project',
-    Organization = 'organization',
-}
-
 export const annotationScopeToName = new Map<string, string>([
     [AnnotationScope.DashboardItem, 'dashboard item'],
     [AnnotationScope.Project, 'project'],
@@ -44,11 +39,6 @@ export const annotationScopeToName = new Map<string, string>([
 export const PERSON_DISTINCT_ID_MAX_SIZE = 3
 
 // Event constants
-export const PAGEVIEW = '$pageview'
-export const AUTOCAPTURE = '$autocapture'
-export const SCREEN = '$screen'
-export const CUSTOM_EVENT = 'custom_event'
-
 export const ACTION_TYPE = 'action_type'
 export const EVENT_TYPE = 'event_type'
 
@@ -236,6 +226,9 @@ export const FEATURE_FLAGS: Record<string, string> = {
     PROJECT_HOME: 'project-home-exp-5',
     QUERY_UX_V2: '4050-query-ui-optB',
     EVENT_COLUMN_CONFIG: '4141-event-columns',
+    NPS_PROMPT: '4562-nps',
+    INGESTION_TAXONOMY: '4267-event-property-taxonomy',
+    NEW_TOOLTIPS: '4156-tooltips-legends',
 }
 
 export const ENVIRONMENT_LOCAL_STORAGE_KEY = '$environment'

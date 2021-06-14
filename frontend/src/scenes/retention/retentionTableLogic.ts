@@ -1,12 +1,12 @@
 import { kea } from 'kea'
 import { router } from 'kea-router'
 import api from 'lib/api'
-import { toParams, objectsEqual } from 'lib/utils'
+import { toParams, objectsEqual, uuid } from 'lib/utils'
 import { ViewType, insightLogic } from 'scenes/insights/insightLogic'
 import { insightHistoryLogic } from 'scenes/insights/InsightHistoryPanel/insightHistoryLogic'
 import { retentionTableLogicType } from './retentionTableLogicType'
 import { ACTIONS_LINE_GRAPH_LINEAR, ACTIONS_TABLE, RETENTION_FIRST_TIME, RETENTION_RECURRING } from 'lib/constants'
-import { actionsModel } from '~/models'
+import { actionsModel } from '~/models/actionsModel'
 import { ActionType, FilterType } from '~/types'
 import {
     RetentionTablePayload,
@@ -15,8 +15,8 @@ import {
     RetentionTrendPeoplePayload,
 } from 'scenes/retention/types'
 import { dashboardItemsModel } from '~/models/dashboardItemsModel'
-import { eventDefinitionsLogic } from 'scenes/events/eventDefinitionsLogic'
-import { propertyDefinitionsLogic } from 'scenes/events/propertyDefinitionsLogic'
+import { eventDefinitionsModel } from '~/models/eventDefinitionsModel'
+import { propertyDefinitionsModel } from '~/models/propertyDefinitionsModel'
 
 export const dateOptions = ['Hour', 'Day', 'Week', 'Month']
 
@@ -68,17 +68,18 @@ export const retentionTableLogic = kea<
                 if (!refresh && (props.cachedResults || props.preventLoading) && values.filters === props.filters) {
                     return props.cachedResults
                 }
-                insightLogic.actions.startQuery()
+                const queryId = uuid()
+                insightLogic.actions.startQuery(queryId)
                 let res
                 const urlParams = toParams({ ...values.filters, ...(refresh ? { refresh: true } : {}) })
                 try {
                     res = await api.get(`api/insight/retention/?${urlParams}`)
                 } catch (e) {
-                    insightLogic.actions.endQuery(ViewType.RETENTION, null, e)
+                    insightLogic.actions.endQuery(queryId, ViewType.RETENTION, null, e)
                     return []
                 }
                 breakpoint()
-                insightLogic.actions.endQuery(ViewType.RETENTION, res.last_refresh)
+                insightLogic.actions.endQuery(queryId, ViewType.RETENTION, res.last_refresh)
                 return res.result
             },
         },
@@ -141,7 +142,7 @@ export const retentionTableLogic = kea<
             (actions: ActionType[]) => Object.assign({}, ...actions.map((action) => ({ [action.id]: action.name }))),
         ],
         filtersLoading: [
-            () => [eventDefinitionsLogic.selectors.loaded, propertyDefinitionsLogic.selectors.loaded],
+            () => [eventDefinitionsModel.selectors.loaded, propertyDefinitionsModel.selectors.loaded],
             (eventsLoaded, propertiesLoaded) => !eventsLoaded || !propertiesLoaded,
         ],
     },

@@ -9,14 +9,16 @@ import { ActionInfo } from 'scenes/insights/ActionFilter/ActionFilterRow/ActionF
 import { FilterSelector, sessionsFiltersLogic } from 'scenes/sessions/filters/sessionsFiltersLogic'
 import { Link } from 'lib/components/Link'
 import { cohortsModel } from '~/models/cohortsModel'
-import { eventDefinitionsLogic } from 'scenes/events/eventDefinitionsLogic'
+import { eventDefinitionsModel } from '~/models/eventDefinitionsModel'
+import { personPropertiesModel } from '~/models/personPropertiesModel'
 
 export function SessionsFilterBox({ selector }: { selector: FilterSelector }): JSX.Element | null {
-    const { openFilter, personProperties } = useValues(sessionsFiltersLogic)
+    const { personProperties } = useValues(personPropertiesModel)
+    const { openFilter } = useValues(sessionsFiltersLogic)
 
     const { closeFilterSelect, dropdownSelected } = useActions(sessionsFiltersLogic)
 
-    const { eventDefinitions } = useValues(eventDefinitionsLogic)
+    const { eventDefinitions } = useValues(eventDefinitionsModel)
     const { actions } = useValues(actionsModel)
     const { cohorts } = useValues(cohortsModel)
 
@@ -43,6 +45,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
             })),
             renderInfo: ActionInfo,
             type: 'action_type',
+            key: 'action_type',
             getValue: (item: SelectedItem) => item.action?.id || '',
             getLabel: (item: SelectedItem) => item.action?.name || '',
         },
@@ -80,6 +83,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                 )
             },
             type: 'event_type',
+            key: 'event_type',
             getValue: (item: SelectedItem) => item.name,
             getLabel: (item: SelectedItem) => item.name,
         },
@@ -98,7 +102,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                 id: cohort.id,
                 cohort,
             })),
-            renderInfo: function cohorts({ item }) {
+            renderInfo: function renderCohorts({ item }) {
                 return (
                     <>
                         <UsergroupAddOutlined /> Cohorts
@@ -121,6 +125,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                 )
             },
             type: 'cohort',
+            key: 'cohort',
             getValue: (item: SelectedItem) => item.id || '',
             getLabel: (item: SelectedItem) => item.name,
         },
@@ -141,7 +146,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                 name: name,
                 usage_count: count,
             })),
-            renderInfo: function userProperty({ item }) {
+            renderInfo: function renderUserProperty({ item }) {
                 return (
                     <>
                         <UsergroupAddOutlined /> User property
@@ -155,6 +160,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                     </>
                 )
             },
+            key: 'person',
             type: 'person',
             getValue: (item: SelectedItem) => item.name,
             getLabel: (item: SelectedItem) => item.name,
@@ -183,6 +189,7 @@ export function SessionsFilterBox({ selector }: { selector: FilterSelector }): J
                 </>
             )
         },
+        key: 'recording',
         type: 'recording',
         getValue: (item: SelectedItem) => item.value || '',
         getLabel: (item: SelectedItem) => item.name,

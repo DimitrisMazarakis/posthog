@@ -27,7 +27,7 @@ import './Insights.scss'
 import { ErrorMessage, TimeOut } from './EmptyStates'
 import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
 import { People } from 'scenes/funnels/People'
-import { TrendLegend } from './TrendLegend'
+import { InsightsTable } from './InsightsTable'
 import { TrendInsight } from 'scenes/trends/Trends'
 import { trendsLogic } from 'scenes/trends/trendsLogic'
 import { HotKeys } from '~/types'
@@ -35,6 +35,7 @@ import { useKeyboardHotkeys } from 'lib/hooks/useKeyboardHotkeys'
 import { eventUsageLogic } from 'lib/utils/eventUsageLogic'
 import { InsightDisplayConfig } from './InsightTabs/InsightDisplayConfig'
 import { PageHeader } from 'lib/components/PageHeader'
+import { NPSPrompt } from 'lib/experimental/NPSPrompt'
 
 export interface BaseTabProps {
     annotationsToCreate: any[] // TODO: Type properly
@@ -109,14 +110,14 @@ export function Insights(): JSX.Element {
                         overflow: 'visible',
                     }}
                     className="top-bar"
-                    onChange={(key) => setActiveView(key)}
+                    onChange={(key) => setActiveView(key as ViewType)}
                     animated={false}
                     tabBarExtraContent={{
                         right: (
                             <Button
-                                type={activeView === 'history' ? 'primary' : undefined}
+                                type={activeView === ViewType.HISTORY ? 'primary' : undefined}
                                 data-attr="insight-history-button"
-                                onClick={() => setActiveView('history')}
+                                onClick={() => setActiveView(ViewType.HISTORY)}
                             >
                                 History
                             </Button>
@@ -214,7 +215,7 @@ export function Insights(): JSX.Element {
                 </Tabs>
             </Row>
             <Row gutter={16}>
-                {activeView === 'history' ? (
+                {activeView === ViewType.HISTORY ? (
                     <Col xs={24} xl={24}>
                         <Card className="" style={{ overflow: 'visible' }}>
                             <InsightHistoryPanel />
@@ -375,7 +376,7 @@ export function Insights(): JSX.Element {
                                             logic={trendsLogic}
                                             props={{ dashboardItemId: null, view: activeView }}
                                         >
-                                            <TrendLegend />
+                                            <InsightsTable />
                                         </BindLogic>
                                     </Card>
                                 )}
@@ -383,6 +384,7 @@ export function Insights(): JSX.Element {
                     </>
                 )}
             </Row>
+            <NPSPrompt />
         </div>
     )
 }

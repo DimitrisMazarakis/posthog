@@ -1,37 +1,32 @@
 import { kea } from 'kea'
-import { toParams, objectsEqual } from 'lib/utils'
+import { toParams, objectsEqual, uuid } from 'lib/utils'
 import api from 'lib/api'
 import { router } from 'kea-router'
 import { ViewType, insightLogic } from 'scenes/insights/insightLogic'
 import { insightHistoryLogic } from 'scenes/insights/InsightHistoryPanel/insightHistoryLogic'
 import { pathsLogicType } from './pathsLogicType'
-import { FilterType, PropertyFilter } from '~/types'
+import { FilterType, PathType, PropertyFilter } from '~/types'
 import { dashboardItemsModel } from '~/models/dashboardItemsModel'
-import { propertyDefinitionsLogic } from 'scenes/events/propertyDefinitionsLogic'
-
-export const PAGEVIEW = '$pageview'
-export const SCREEN = '$screen'
-export const AUTOCAPTURE = '$autocapture'
-export const CUSTOM_EVENT = 'custom_event'
+import { propertyDefinitionsModel } from '~/models/propertyDefinitionsModel'
 
 export const pathOptionsToLabels = {
-    [`${PAGEVIEW}`]: 'Page views (Web)',
-    [`${SCREEN}`]: 'Screen views (Mobile)',
-    [`${AUTOCAPTURE}`]: 'Autocaptured events',
-    [`${CUSTOM_EVENT}`]: 'Custom events',
+    [PathType.PageView]: 'Page views (Web)',
+    [PathType.Screen]: 'Screen views (Mobile)',
+    [PathType.AutoCapture]: 'Autocaptured events',
+    [PathType.CustomEvent]: 'Custom events',
 }
 
 export const pathOptionsToProperty = {
-    [`${PAGEVIEW}`]: '$current_url',
-    [`${SCREEN}`]: '$screen_name',
-    [`${AUTOCAPTURE}`]: 'autocaptured_event',
-    [`${CUSTOM_EVENT}`]: 'custom_event',
+    [PathType.PageView]: '$current_url',
+    [PathType.Screen]: '$screen_name',
+    [PathType.AutoCapture]: 'autocaptured_event',
+    [PathType.CustomEvent]: 'custom_event',
 }
 
 function cleanPathParams(filters: Partial<FilterType>): Partial<FilterType> {
     return {
         start_point: filters.start_point,
-        path_type: filters.path_type || '$pageview',
+        path_type: filters.path_type || PathType.PageView,
         date_from: filters.date_from,
         date_to: filters.date_to,
         insight: ViewType.PATHS,
@@ -72,15 +67,16 @@ export const pathsLogic = kea<pathsLogicType<PathResult, PropertyFilter, FilterT
                 }
                 const params = toParams({ ...filter, ...(refresh ? { refresh: true } : {}) })
                 let paths
-                insightLogic.actions.startQuery()
+                const queryId = uuid()
+                insightLogic.actions.startQuery(queryId)
                 try {
                     paths = await api.get(`api/insight/path${params ? `/?${params}` : ''}`)
                 } catch (e) {
-                    insightLogic.actions.endQuery(ViewType.PATHS, null, e)
+                    insightLogic.actions.endQuery(queryId, ViewType.PATHS, null, e)
                     return { paths: [], filter, error: true }
                 }
                 breakpoint()
-                insightLogic.actions.endQuery(ViewType.PATHS, paths.last_refresh)
+                insightLogic.actions.endQuery(queryId, ViewType.PATHS, paths.last_refresh)
                 return { paths: paths.result, filter }
             },
         },
@@ -179,7 +175,7 @@ export const pathsLogic = kea<pathsLogicType<PathResult, PropertyFilter, FilterT
             },
         ],
         filtersLoading: [
-            () => [propertyDefinitionsLogic.selectors.loaded],
+            () => [propertyDefinitionsModel.selectors.loaded],
             (propertiesLoaded): boolean => !propertiesLoaded,
         ],
     },

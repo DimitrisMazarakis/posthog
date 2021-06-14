@@ -25,6 +25,14 @@ export interface SelectBoxItem {
     metadata?: Record<string, any> // Used to store additional data (e.g. search term)
 }
 
+interface CustomOnSelectProps {
+    item: SelectedItem
+    group: SelectBoxItem
+}
+
+export interface RenderInfoProps {
+    item: SelectedItem
+}
 export interface SelectedItem {
     id?: number | string // Populated for actions (string is used for UUIDs)
     name: string
@@ -37,6 +45,9 @@ export interface SelectedItem {
     is_numerical?: boolean // Only for properties
     category?: string
     cohort?: CohortType
+    onSelect?: (props?: CustomOnSelectProps) => void // Custom handler on item select
+    onSelectPreventDefault?: boolean // Prevent default handler logic from running
+    renderInfo?: (props?: RenderInfoProps) => JSX.Element // Override group renderInfo for this item
 }
 
 export function SelectBox({
@@ -129,9 +140,9 @@ export function SelectUnit({
     const [flattenedData, setFlattenedData] = useState<SelectedItem[]>([])
     const [groupTypes, setGroupTypes] = useState<string[]>([])
 
-    let lenghtOfData = 0
+    let lengthOfData = 0
     Object.values(items).forEach((entry) => {
-        lenghtOfData += entry.dataSource.length
+        lengthOfData += entry?.dataSource?.length || 0
     })
 
     useEffect(() => {
@@ -151,7 +162,7 @@ export function SelectUnit({
         setGroupTypes(_groupTypes)
         setData(formattedData)
         setHiddenData(_hiddenData)
-    }, [lenghtOfData])
+    }, [lengthOfData])
 
     useEffect(() => {
         const _flattenedData: SelectedItem[] = []
