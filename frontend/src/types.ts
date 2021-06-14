@@ -1,12 +1,8 @@
 import {
     ACTION_TYPE,
-    AUTOCAPTURE,
-    CUSTOM_EVENT,
     EVENT_TYPE,
     OrganizationMembershipLevel,
     PluginsAccessLevel,
-    PAGEVIEW,
-    SCREEN,
     ShownAsValue,
     RETENTION_RECURRING,
     RETENTION_FIRST_TIME,
@@ -24,12 +20,14 @@ export type AvailableFeatures =
     | 'google_login'
     | 'dashboard_collaboration'
     | 'clickhouse'
+    | 'ingestion_taxonomy'
 
 export interface ColumnConfig {
     active: string[] | 'DEFAULT'
 }
 export interface UserType {
     uuid: string
+    date_joined: string
     first_name: string
     email: string
     email_opt_in: boolean
@@ -511,12 +509,18 @@ export interface PluginLogEntry {
     instance_id: string
 }
 
+export enum AnnotationScope {
+    DashboardItem = 'dashboard_item',
+    Project = 'project',
+    Organization = 'organization',
+}
+
 export interface AnnotationType {
     id: string
-    scope: 'organization' | 'dashboard_item'
+    scope: AnnotationScope
     content: string
     date_marker: string
-    created_by?: UserBasicType | null
+    created_by?: UserBasicType | 'local' | null
     created_at: string
     updated_at: string
     dashboard_item?: number
@@ -536,7 +540,13 @@ export type DisplayType =
 export type InsightType = 'TRENDS' | 'SESSIONS' | 'FUNNELS' | 'RETENTION' | 'PATHS' | 'LIFECYCLE' | 'STICKINESS'
 export type ShownAsType = ShownAsValue // DEPRECATED: Remove when releasing `remove-shownas`
 export type BreakdownType = 'cohort' | 'person' | 'event'
-export type PathType = typeof PAGEVIEW | typeof AUTOCAPTURE | typeof SCREEN | typeof CUSTOM_EVENT
+
+export enum PathType {
+    PageView = '$pageview',
+    AutoCapture = '$autocapture',
+    Screen = '$screen',
+    CustomEvent = 'custom_event',
+}
 
 export type RetentionType = typeof RETENTION_RECURRING | typeof RETENTION_FIRST_TIME
 
@@ -635,6 +645,7 @@ export interface TrendResult {
     label: string
     labels: string[]
     breakdown_value?: string | number
+    aggregated_value: number
     status?: string
 }
 
@@ -763,16 +774,31 @@ export interface LicenseType {
 export interface EventDefinition {
     id: string
     name: string
+    description: string
+    tags: string[]
     volume_30_day: number | null
     query_usage_30_day: number | null
+    owner?: UserBasicType | null
+    updated_at?: string
+    updated_by?: UserBasicType | null
 }
 
 export interface PropertyDefinition {
     id: string
     name: string
+    description: string
+    tags: string[]
     volume_30_day: number | null
     query_usage_30_day: number | null
+    owner?: UserBasicType | null
+    updated_at?: string
+    updated_by?: UserBasicType | null
     is_numerical?: boolean // Marked as optional to allow merge of EventDefinition & PropertyDefinition
+}
+
+export interface PersonProperty {
+    name: string
+    count: number
 }
 
 export interface SelectOption {
@@ -807,4 +833,10 @@ export interface TiledIconModuleProps {
     header?: string
     subHeader?: string
     analyticsModuleKey?: string
+}
+
+export type EventOrPropType = EventDefinition & PropertyDefinition
+export interface AppContext {
+    current_user: UserType | null
+    preflight: PreflightStatus
 }

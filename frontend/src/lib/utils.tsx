@@ -261,7 +261,7 @@ export function isOperatorRegex(operator: string): boolean {
     return ['regex', 'not_regex'].includes(operator)
 }
 
-export function isValidRegex(value: string): boolean {
+export function isValidRegex(value: any): boolean {
     try {
         new RegExp(value)
         return true
@@ -478,8 +478,8 @@ export function eventToName(event: EventType): string {
 }
 
 export function determineDifferenceType(
-    firstDate: dayjs.Dayjs,
-    secondDate: dayjs.Dayjs
+    firstDate: dayjs.Dayjs | string,
+    secondDate: dayjs.Dayjs | string
 ): 'year' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second' {
     const first = dayjs(firstDate)
     const second = dayjs(secondDate)
@@ -854,4 +854,8 @@ export function maybeAddCommasToInteger(value: any): any {
     }
     const internationalNumberFormat = new Intl.NumberFormat('en-US')
     return internationalNumberFormat.format(value)
+}
+
+export function toString(input?: any | null): string {
+    return input?.toString() || ''
 }

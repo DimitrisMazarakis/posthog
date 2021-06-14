@@ -27,7 +27,7 @@ import './Insights.scss'
 import { ErrorMessage, TimeOut } from './EmptyStates'
 import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
 import { People } from 'scenes/funnels/People'
-import { TrendLegend } from './TrendLegend'
+import { InsightsTable } from './InsightsTable'
 import { TrendInsight } from 'scenes/trends/Trends'
 import { trendsLogic } from 'scenes/trends/trendsLogic'
 import { HotKeys } from '~/types'
@@ -35,6 +35,7 @@ import { useKeyboardHotkeys } from 'lib/hooks/useKeyboardHotkeys'
 import { eventUsageLogic } from 'lib/utils/eventUsageLogic'
 import { InsightDisplayConfig } from './InsightTabs/InsightDisplayConfig'
 import { PageHeader } from 'lib/components/PageHeader'
+import { NPSPrompt } from 'lib/experimental/NPSPrompt'
 
 export interface BaseTabProps {
     annotationsToCreate: any[] // TODO: Type properly
@@ -375,7 +376,7 @@ export function Insights(): JSX.Element {
                                             logic={trendsLogic}
                                             props={{ dashboardItemId: null, view: activeView }}
                                         >
-                                            <TrendLegend />
+                                            <InsightsTable />
                                         </BindLogic>
                                     </Card>
                                 )}
@@ -383,6 +384,7 @@ export function Insights(): JSX.Element {
                     </>
                 )}
             </Row>
+            <NPSPrompt />
         </div>
     )
 }

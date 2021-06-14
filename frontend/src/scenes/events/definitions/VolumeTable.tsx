@@ -1,23 +1,29 @@
-import React, { useEffect, useState } from 'react'
-import { useValues } from 'kea'
-import { Alert, Input, Skeleton, Table, Tooltip } from 'antd'
+import { Alert, Button, Input, Tooltip } from 'antd'
+import { InfoCircleOutlined, WarningOutlined, ArrowRightOutlined } from '@ant-design/icons'
+import Table, { ColumnsType } from 'antd/lib/table'
 import Fuse from 'fuse.js'
-import { InfoCircleOutlined, WarningOutlined } from '@ant-design/icons'
+import { useValues, useActions } from 'kea'
+import { keyMapping, PropertyKeyInfo } from 'lib/components/PropertyKeyInfo'
 import { capitalizeFirstLetter, humanizeNumber } from 'lib/utils'
-import { preflightLogic } from 'scenes/PreflightCheck/logic'
-import { ColumnsType } from 'antd/lib/table'
-import { PropertyKeyInfo } from 'lib/components/PropertyKeyInfo'
-import { eventDefinitionsLogic } from './eventDefinitionsLogic'
-import { EventDefinition, PropertyDefinition } from '~/types'
-import { PageHeader } from 'lib/components/PageHeader'
+import React, { useState, useEffect } from 'react'
+import { userLogic } from 'scenes/userLogic'
+import { ProfilePicture } from '~/layout/navigation/TopNavigation'
+import { EventDefinition, EventOrPropType, PropertyDefinition, UserBasicType } from '~/types'
+import './VolumeTable.scss'
+import { definitionDrawerLogic } from './definitionDrawerLogic'
+import { ObjectTags } from 'lib/components/ObjectTags'
+import { FEATURE_FLAGS } from 'lib/constants'
+import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
 
 type EventTableType = 'event' | 'property'
-
-type EventOrPropType = EventDefinition & PropertyDefinition
 
 interface VolumeTableRecord {
     eventOrProp: EventOrPropType
     warnings: string[]
+}
+
+const isPosthogEvent = (name: string): boolean => {
+    return !!keyMapping.event[name]
 }
 
 const search = (sources: VolumeTableRecord[], searchQuery: string): VolumeTableRecord[] => {
@@ -27,6 +33,40 @@ const search = (sources: VolumeTableRecord[], searchQuery: string): VolumeTableR
     })
         .search(searchQuery)
         .map((result) => result.item)
+}
+export function Owner({ user }: { user?: UserBasicType | null }): JSX.Element {
+    return (
+        <>
+            {user?.uuid ? (
+                <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'row' }}>
+                    <ProfilePicture name={user.first_name} email={user.email} small={true} />
+                    <span style={{ paddingLeft: 8 }}>{user.first_name}</span>
+                </div>
+            ) : (
+                <span className="text-muted" style={{ fontStyle: 'italic' }}>
+                    No Owner
+                </span>
+            )}
+        </>
+    )
+}
+export function UsageDisabledWarning({ tab }: { tab: string }): JSX.Element {
+    return (
+        <Alert
+            type="info"
+            showIcon
+            message={`${tab} is not enabled for your instance.`}
+            description={
+                <>
+                    You will still see the list of events and properties, but usage information will be unavailable. If
+                    you want to enable event usage please set the follow environment variable:{' '}
+                    <pre style={{ display: 'inline' }}>ASYNC_EVENT_PROPERTY_USAGE=1</pre>. Please note, enabling this
+                    environment variable <b>may increase load considerably in your infrastructure</b>, particularly if
+                    you have a large volume of events.
+                </>
+            }
+        />
+    )
 }
 
 export function VolumeTable({
@@ -38,6 +78,12 @@ export function VolumeTable({
 }): JSX.Element {
     const [searchTerm, setSearchTerm] = useState(false as string | false)
     const [dataWithWarnings, setDataWithWarnings] = useState([] as VolumeTableRecord[])
+    const { user } = useValues(userLogic)
+    const { openDrawer } = useActions(definitionDrawerLogic)
+    const { featureFlags } = useValues(featureFlagLogic)
+    const hasTaxonomyFeatures =
+        featureFlags[FEATURE_FLAGS.INGESTION_TAXONOMY] &&
+        user?.organization?.available_features?.includes('ingestion_taxonomy')
 
     const columns: ColumnsType<VolumeTableRecord> = [
         {
@@ -45,9 +91,22 @@ export function VolumeTable({
             render: function Render(_, record): JSX.Element {
                 return (
                     <span>
-                        <span className="ph-no-capture">
-                            <PropertyKeyInfo value={record.eventOrProp.name} />
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'baseline', paddingBottom: 4 }}>
+                            <span className="ph-no-capture" style={{ paddingRight: 8 }}>
+                                <PropertyKeyInfo
+                                    style={hasTaxonomyFeatures ? { fontWeight: 'bold' } : {}}
+                                    value={record.eventOrProp.name}
+                                />
+                            </span>
+                            {hasTaxonomyFeatures ? (
+                                <ObjectTags tags={record.eventOrProp.tags || []} staticOnly />
+                            ) : null}
+                        </div>
+                        {hasTaxonomyFeatures &&
+                            type === 'event' &&
+                            (isPosthogEvent(record.eventOrProp.name) ? null : (
+                                <VolumeTableRecordDescription description={record.eventOrProp.description} />
+                            ))}
                         {record.warnings?.map((warning) => (
                             <Tooltip
                                 key={warning}
@@ -71,6 +130,15 @@ export function VolumeTable({
             ],
             onFilter: (value, record) => (value === 'warnings' ? !!record.warnings.length : !record.warnings.length),
         },
+        type === 'event' && hasTaxonomyFeatures
+            ? {
+                  title: 'Owner',
+                  render: function Render(_, record): JSX.Element {
+                      const owner = record.eventOrProp?.owner
+                      return isPosthogEvent(record.eventOrProp.name) ? <>-</> : <Owner user={owner} />
+                  },
+              }
+            : {},
         type === 'event'
             ? {
                   title: function VolumeTitle() {
@@ -113,6 +181,23 @@ export function VolumeTable({
                     ? (a.eventOrProp.query_usage_30_day || -1) - (b.eventOrProp.query_usage_30_day || -1)
                     : (a.eventOrProp.query_usage_30_day || -1) - (b.eventOrProp.query_usage_30_day || -1),
         },
+        type === 'event' && hasTaxonomyFeatures
+            ? {
+                  render: function Render(_, item) {
+                      return (
+                          <>
+                              {isPosthogEvent(item.eventOrProp.name) ? null : (
+                                  <Button
+                                      type="link"
+                                      icon={<ArrowRightOutlined style={{ color: '#5375FF' }} />}
+                                      onClick={() => openDrawer(type, item.eventOrProp.id)}
+                                  />
+                              )}
+                          </>
+                      )
+                  },
+              }
+            : {},
     ]
 
     useEffect(() => {
@@ -153,60 +238,23 @@ export function VolumeTable({
                 size="small"
                 style={{ marginBottom: '4rem' }}
                 pagination={{ pageSize: 100, hideOnSinglePage: true }}
+                onRow={(record) =>
+                    isPosthogEvent(record.eventOrProp.name)
+                        ? {}
+                        : { onClick: () => openDrawer(type, record.eventOrProp.id) }
+                }
             />
         </>
     )
 }
 
-export function UsageDisabledWarning({ tab }: { tab: string }): JSX.Element {
-    return (
-        <Alert
-            type="info"
-            showIcon
-            message={`${tab} is not enabled for your instance.`}
-            description={
-                <>
-                    You will still see the list of events and properties, but usage information will be unavailable. If
-                    you want to enable event usage please set the follow environment variable:{' '}
-                    <pre style={{ display: 'inline' }}>ASYNC_EVENT_PROPERTY_USAGE=1</pre>. Please note, enabling this
-                    environment variable <b>may increase load considerably in your infrastructure</b>, particularly if
-                    you have a large volume of events.
-                </>
-            }
-        />
-    )
-}
-
-export function EventsVolumeTable(): JSX.Element | null {
-    const { preflight } = useValues(preflightLogic)
-    const { eventDefinitions, loaded } = useValues(eventDefinitionsLogic)
-
+export function VolumeTableRecordDescription({ description }: { description: string }): JSX.Element {
     return (
         <>
-            <PageHeader
-                title="Events Stats"
-                caption="See all event names that have ever been sent to this team, including the volume and how often
-        queries where made using this event."
-                style={{ marginTop: 0 }}
-            />
-            {loaded ? (
-                <>
-                    {preflight && !preflight?.is_event_property_usage_enabled ? (
-                        <UsageDisabledWarning tab="Events Stats" />
-                    ) : (
-                        eventDefinitions[0].volume_30_day === null && (
-                            <>
-                                <Alert
-                                    type="warning"
-                                    message="We haven't been able to get usage and volume data yet. Please check back later"
-                                />
-                            </>
-                        )
-                    )}
-                    <VolumeTable data={eventDefinitions} type="event" />
-                </>
+            {description ? (
+                <div style={{ display: 'flex', maxWidth: 500 }}>{description}</div>
             ) : (
-                <Skeleton active paragraph={{ rows: 5 }} />
+                <div className="text-muted">Click to add description</div>
             )}
         </>
     )

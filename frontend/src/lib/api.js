@@ -1,5 +1,6 @@
 import { fromParamsGivenUrl, toParams } from 'lib/utils'
 import { Environments, ENVIRONMENT_LOCAL_STORAGE_KEY } from 'lib/constants'
+import posthog from 'posthog-js'
 
 export function getCookie(name) {
     var cookieValue = null
@@ -31,6 +32,7 @@ class Api {
         url = maybeAddEnvironmentProperty(url)
 
         let response
+        const startTime = new Date().getTime()
         try {
             response = await fetch(url)
         } catch (e) {
@@ -38,6 +40,7 @@ class Api {
         }
 
         if (!response.ok) {
+            reportError('GET', url, response, startTime)
             const data = await getJSONOrThrow(response)
             throw { status: response.status, ...data }
         }
@@ -48,6 +51,7 @@ class Api {
             url = '/' + url + (url.indexOf('?') === -1 && url[url.length - 1] !== '/' ? '/' : '')
         }
         const isFormData = data instanceof FormData
+        const startTime = new Date().getTime()
         const response = await fetch(url, {
             method: 'PATCH',
             headers: {
@@ -57,6 +61,7 @@ class Api {
             body: isFormData ? data : JSON.stringify(data),
         })
         if (!response.ok) {
+            reportError('PATCH', url, response, startTime)
             const jsonData = await getJSONOrThrow(response)
             if (Array.isArray(jsonData)) {
                 throw jsonData
@@ -70,6 +75,7 @@ class Api {
             url = '/' + url + (url.indexOf('?') === -1 && url[url.length - 1] !== '/' ? '/' : '')
         }
         const isFormData = data instanceof FormData
+        const startTime = new Date().getTime()
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -79,6 +85,7 @@ class Api {
             body: isFormData ? data : JSON.stringify(data),
         })
         if (!response.ok) {
+            reportError('POST', url, response, startTime)
             const jsonData = await getJSONOrThrow(response)
             if (Array.isArray(jsonData)) {
                 throw jsonData
@@ -91,6 +98,7 @@ class Api {
         if (url.indexOf('http') !== 0) {
             url = '/' + url + (url.indexOf('?') === -1 && url[url.length - 1] !== '/' ? '/' : '')
         }
+        const startTime = new Date().getTime()
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
@@ -99,6 +107,7 @@ class Api {
             },
         })
         if (!response.ok) {
+            reportError('DELETE', url, response, startTime)
             const data = await getJSONOrThrow(response)
             throw { status: response.status, ...data }
         }
@@ -153,6 +162,12 @@ function maybeAddEnvironmentProperty(url) {
     } else {
         return url
     }
+}
+
+function reportError(method, url, response, startTime) {
+    const duration = new Date().getTime() - startTime
+    const pathname = new URL(url, location.origin).pathname
+    posthog.capture('client_request_failure', { pathname, method, duration, status: response.status })
 }
 
 let api = new Api()
